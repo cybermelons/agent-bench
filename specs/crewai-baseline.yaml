@@ -1,0 +1,13 @@
+# Identical to langgraph-baseline.yaml except for ONE line: framework.
+# Same corpus, same model, same termination policy — the eval runs both and
+# compares how each framework honors the same declarative contract.
+name: crewai-baseline
+framework: crewai
+corpus: corpus
+model: claude-3-5-sonnet-latest
+tools: []
+termination:
+  max_iterations: 6
+  timeout_s: 30.0
+  max_retries: 2
+  success_gate: cites_corpus

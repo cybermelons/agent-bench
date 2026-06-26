@@ -1,0 +1,66 @@
+questions:
+  - id: q1
+    question: "How much is the weekend on-call stipend at Meridian, and how is it paid?"
+    expected_doc: oncall-policy
+    rubric: "A correct answer states the weekend on-call stipend is $150 per day, and that it is processed automatically through Workday at the end of the rotation week."
+    answer_contains: ["$150", "Workday"]
+
+  - id: q2
+    question: "For how many days is a staging deploy retained before it is automatically cleaned up?"
+    expected_doc: deploy-staging
+    rubric: "A correct answer states that staging deploys are automatically cleaned up after 7 days if not promoted to production."
+    answer_contains: ["7 days"]
+
+  - id: q3
+    question: "What is the maximum response SLA for a P1 incident at Meridian?"
+    expected_doc: incident-response
+    rubric: "A correct answer states that P1 (Critical) incidents have a 15-minute response SLA."
+    answer_contains: ["15 minutes", "P1"]
+
+  - id: q4
+    question: "How long is a standard Vault access token valid after it is issued, and can it be renewed?"
+    expected_doc: access-provisioning
+    rubric: "A correct answer states the token is valid for 8 hours and explicitly states it is not renewable; engineers must re-request after expiry."
+    answer_contains: ["8 hours", "not renewable"]
+
+  - id: q5
+    question: "What error rate threshold triggers an automatic rollback during a production deploy?"
+    expected_doc: deploy-production
+    rubric: "A correct answer states that if the error rate on any endpoint exceeds 2% over a 5-minute window, the Canary Runner automatically initiates a rollback."
+    answer_contains: ["2%", "5-minute"]
+
+  - id: q6
+    question: "What happens to feature flags in the staging environment at Meridian?"
+    expected_doc: deploy-staging
+    rubric: "A correct answer states that all feature flags default to enabled in staging to maximize test coverage. It should NOT describe production behavior."
+    answer_contains: ["enabled", "staging"]
+
+  - id: q7
+    question: "When are production deploys frozen at Meridian?"
+    expected_doc: deploy-production
+    rubric: "A correct answer states deploys are frozen from December 20 through January 2 (inclusive) and for 48 hours before any scheduled maintenance window."
+    answer_contains: ["December 20", "January 2"]
+
+  - id: q8
+    question: "How long must a service remain in deprecated status before it can be removed from the Service Catalog?"
+    expected_doc: service-catalog
+    rubric: "A correct answer states that a service must be in deprecated status for at least 90 days before it can be removed from the catalog."
+    answer_contains: ["90 days"]
+
+  - id: q9
+    question: "What are the retention periods for billing records and for application logs at Meridian?"
+    expected_doc: data-retention
+    rubric: "A correct answer gives both: billing records (Tier 1 Transactional) are retained for 7 years, and application logs (Tier 2 Operational) are retained for 2 years."
+    answer_contains: ["7 years", "2 years"]
+
+  - id: q10
+    question: "Before triggering a production deploy, what must the engineer do regarding the on-call primary?"
+    expected_doc: deploy-production
+    rubric: "A correct answer states the engineer must notify the current on-call primary using the /notify-oncall Slack command. A strong answer may also note the on-call primary is responsible for acknowledging pages (from oncall-policy), but the primary source for the pre-deploy notification requirement is deploy-production."
+    answer_contains: ["/notify-oncall", "on-call"]
+
+  - id: q11
+    question: "How quickly must all active Vault tokens and access grants be revoked when an engineer leaves Meridian?"
+    expected_doc: access-provisioning
+    rubric: "A correct answer states that offboarding revokes all active Vault tokens and AccessBot grants within 2 hours of the departure date."
+    answer_contains: ["2 hours", "offboarding"]

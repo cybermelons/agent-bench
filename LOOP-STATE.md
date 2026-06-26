@@ -14,8 +14,8 @@ Build rules (from the approved plan):
 ## Phase 0 — Foundations
 - [x] pyproject.toml + .gitignore + .env.example + README.md stub + docker-compose.yml
 - [x] porcelain/types.py — AgentSpec, AgentResult, TerminationPolicy (pydantic)
-- [ ] corpus/ docs (~6–10 short md) + corpus/golden.yaml (~8–12 Q/A w/ rubric + expected doc)
-- [ ] specs/example.yaml — one AgentSpec with a framework field
+- [x] corpus/ docs (~6–10 short md) + corpus/golden.yaml (~8–12 Q/A w/ rubric + expected doc)
+- [x] specs/example.yaml — one AgentSpec with a framework field (made TWO: langgraph + crewai, proving the one-line swap)
 
 ## Phase 1 — porcelain + langgraph
 - [ ] porcelain/retrieval.py — shared chunk+embed+top-k util (single source, both adapters reuse)
@@ -41,5 +41,7 @@ Build rules (from the approved plan):
 
 ## Log
 (newest first; one line per completed item)
+- P0.4 specs: langgraph-baseline.yaml + crewai-baseline.yaml, both load via AgentSpec.from_yaml. PHASE 0 COMPLETE.
+- P0.3 corpus: 7-doc fictional "Meridian Systems" handbook + 11-Q golden.yaml. Validated: parses, all expected_doc resolve, all answer_contains literal in their doc. Fictional domain forces retrieval (no training-data leakage). Difficulty mix: 6 easy / 3 disambiguation / 1 cross-doc / 1 table-lookup.
 - P0.2 porcelain/types.py: AgentSpec/AgentResult/TerminationPolicy/Citation/TerminatedBy — import-verified in .venv, cites_corpus works. Declarative termination standardized across frameworks (the senior design point) documented per-field. venv created, pydantic+pyyaml installed.
 - P0.1 foundations: pyproject(hatchling)/.gitignore/.env.example/README stub/docker-compose — toml+yaml parse OK. Note: __init__.py to be added as each package gets its first module (Phase 1/2). sentence-transformers chosen for local embeddings.

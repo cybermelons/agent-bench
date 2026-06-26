@@ -1,0 +1,15 @@
+# Example AgentSpec — the write-once declaration an app author provides.
+# Swapping `framework: langgraph` -> `framework: crewai` is the ONE line that
+# moves this identical agent onto the other framework. Everything else
+# (corpus, model, termination policy) stays the same. That is the whole point
+# of the porcelain layer: measure both, standardize the defaults.
+name: langgraph-baseline
+framework: langgraph
+corpus: corpus
+model: claude-3-5-sonnet-latest   # any claude-* id; named explicitly per repo convention
+tools: []                          # retrieval is implicit; no extra tools in v1
+termination:
+  max_iterations: 6                # provisional default — Phase 4 annotates with eval provenance
+  timeout_s: 30.0
+  max_retries: 2
+  success_gate: cites_corpus       # answer must cite >=1 corpus doc
