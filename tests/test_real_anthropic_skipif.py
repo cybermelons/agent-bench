@@ -19,8 +19,9 @@ from porcelain.runner import run_spec
 from porcelain.types import AgentSpec, TerminatedBy
 
 pytestmark = pytest.mark.skipif(
-    not os.getenv("ANTHROPIC_API_KEY"),
-    reason="requires ANTHROPIC_API_KEY for a live Anthropic API call",
+    os.getenv("RUN_LIVE") != "1" or not os.getenv("ANTHROPIC_API_KEY"),
+    reason="live test: set RUN_LIVE=1 and ANTHROPIC_API_KEY to run. "
+    "Gated on RUN_LIVE so a stale/invalid key in the env produces a skip, not a failure.",
 )
 
 

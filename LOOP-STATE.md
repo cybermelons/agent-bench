@@ -34,9 +34,10 @@ Build rules (from the approved plan):
 - [x] adapters/crewai/ — REAL crewai Agent/Task/Crew + crew.kickoff(). _ShimLLM(BaseLLM) routes model call through self.llm seam (FakeLLM works, token accounting matches langgraph). Shared CorpusRetriever; citation/terminated_by/timing inherited from base. _run_inner only.
 - [x] tests: crewai gates on golden Q; INTERCHANGE test proves same Q on both frameworks differs only by the framework: line. 26 passed/2 skipped offline.
 
-## Phase 3 — evalkit
-- [ ] evalkit/run.py — golden × both adapters, score (citation deterministic, correctness Claude judge)
-- [ ] tests: subset eval runs end-to-end, emits evalkit/results.json with both frameworks
+## Phase 3 — evalkit — COMPLETE
+- [x] evalkit/run.py + judge.py — golden × both adapters, score: citation validity + answer_contains (deterministic), correctness via LLM-judge through the SAME LLMClient seam (keyless w/ FakeLLM). Aggregates per-group SLA metrics. results.json {meta, runs, summary}. Metrics verified REAL (hand-recomputed; gate_rate 0.5 vs 1.0 differs).
+- [x] meta.synthetic honesty flag + per-group synthetic/backend stamp (survives screenshot). CLI: --subset/--backend/--personas/--out.
+- [x] tests: judge deterministic, scorers correct, subset eval emits both frameworks. 30 passed/3 skipped (live tests now RUN_LIVE-gated -> skip not fail on stale key).
 
 ## Phase 4 — report
 - [ ] report/build.py — results.json → report/results.md (metrics table, terminated_by breakdown)
@@ -59,6 +60,7 @@ Build rules (from the approved plan):
 
 ## Log
 (newest first; one line per completed item)
+- P3 PHASE 3 COMPLETE: evalkit (run.py + judge.py) — the measurement spine. Golden×both frameworks scored (citation+answer_contains deterministic, correctness LLM-judge via seam), results.json with real per-group SLA metrics + honesty meta. review SOLID. Fixed 2 minors: per-group synthetic stamp (screenshot-safe) + RUN_LIVE gating (live tests skip not fail on stale key). 30 passed/3 skipped.
 - P2 PHASE 2 COMPLETE: real CrewAI adapter (Agent/Task/Crew/kickoff), _ShimLLM(BaseLLM)->self.llm seam, shared retriever, base-owned citation/terminated_by. Interchange test proves one-line framework swap. review verdict SOLID, 26 passed/2 skipped offline, verified independently. Minor: re-kick loop = intentional parity w/ langgraph (fair comparison).
 - P1.5 persona backend: ClaudeCodeClient (real claude -p, keyless) + 3 CL4R1T4S personas + provenance README + AgentSpec.persona. 22 passed/2 skipped offline. Honesty gap closed (personas labeled claude-as-X). This is the concrete proof: "model is a swappable persona behind a 1-method seam; the platform is the deliverable."
 - P1.2-4 PHASE 1 COMPLETE: porcelain/llm.py (LLMClient seam + FakeLLM + RealAnthropicClient), adapters/base.py (shared timing/citation/terminated_by), adapters/langgraph (REAL StateGraph verified), porcelain/runner.py (dispatch + termination). pytest 9 passed/2 skipped offline no-key. The model is a 1-method swappable seam — proves "I build the platform, model doesn't matter". Added Phase 1.5: claude -p + CL4R1T4S persona backend behind that seam.

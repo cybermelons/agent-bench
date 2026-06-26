@@ -66,8 +66,9 @@ def test_langgraph_adapter_gates_on_golden(corpus_path):
 # 4. Live test stub (skipped without a key) --------------------------------
 
 @pytest.mark.skipif(
-    not os.getenv("ANTHROPIC_API_KEY"),
-    reason="requires ANTHROPIC_API_KEY for a live Anthropic API call",
+    os.getenv("RUN_LIVE") != "1" or not os.getenv("ANTHROPIC_API_KEY"),
+    reason="live test: set RUN_LIVE=1 and ANTHROPIC_API_KEY to run "
+    "(gated on RUN_LIVE so a stale key produces a skip, not a failure)",
 )
 def test_live_stub(corpus_path):
     from porcelain.llm import RealAnthropicClient

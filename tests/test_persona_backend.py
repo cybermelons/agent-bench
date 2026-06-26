@@ -188,8 +188,9 @@ def test_load_persona_missing_raises():
 # ---------------------------------------------------------------------------
 
 @pytest.mark.skipif(
-    not os.path.exists(_CLAUDE_BINARY),
-    reason=f"real claude binary not found at {_CLAUDE_BINARY}",
+    os.getenv("RUN_LIVE") != "1" or not os.path.exists(_CLAUDE_BINARY),
+    reason="live test: set RUN_LIVE=1 (and have the real claude binary) to run "
+    "this real shell-out; gated on RUN_LIVE so it stays a skip by default",
 )
 def test_real_claude_shellout_smoke():
     client = ClaudeCodeClient(binary=_CLAUDE_BINARY, timeout_s=120)
