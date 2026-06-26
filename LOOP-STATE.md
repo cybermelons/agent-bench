@@ -30,9 +30,9 @@ Build rules (from the approved plan):
 - [x] AgentSpec.persona: optional, backward-compat verified (old specs load, persona defaults None).
 - [x] tests: prompt-composition tested via monkeypatched subprocess (no real call); real-claude test skipif-binary-missing. 22 passed/2 skipped offline.
 
-## Phase 2 — crewai
-- [ ] adapters/crewai/ — same Adapter.run against the same retrieval util
-- [ ] tests: crewai answers same golden Q; framework swap = one YAML line → pytest green
+## Phase 2 — crewai — COMPLETE
+- [x] adapters/crewai/ — REAL crewai Agent/Task/Crew + crew.kickoff(). _ShimLLM(BaseLLM) routes model call through self.llm seam (FakeLLM works, token accounting matches langgraph). Shared CorpusRetriever; citation/terminated_by/timing inherited from base. _run_inner only.
+- [x] tests: crewai gates on golden Q; INTERCHANGE test proves same Q on both frameworks differs only by the framework: line. 26 passed/2 skipped offline.
 
 ## Phase 3 — evalkit
 - [ ] evalkit/run.py — golden × both adapters, score (citation deterministic, correctness Claude judge)
@@ -59,6 +59,7 @@ Build rules (from the approved plan):
 
 ## Log
 (newest first; one line per completed item)
+- P2 PHASE 2 COMPLETE: real CrewAI adapter (Agent/Task/Crew/kickoff), _ShimLLM(BaseLLM)->self.llm seam, shared retriever, base-owned citation/terminated_by. Interchange test proves one-line framework swap. review verdict SOLID, 26 passed/2 skipped offline, verified independently. Minor: re-kick loop = intentional parity w/ langgraph (fair comparison).
 - P1.5 persona backend: ClaudeCodeClient (real claude -p, keyless) + 3 CL4R1T4S personas + provenance README + AgentSpec.persona. 22 passed/2 skipped offline. Honesty gap closed (personas labeled claude-as-X). This is the concrete proof: "model is a swappable persona behind a 1-method seam; the platform is the deliverable."
 - P1.2-4 PHASE 1 COMPLETE: porcelain/llm.py (LLMClient seam + FakeLLM + RealAnthropicClient), adapters/base.py (shared timing/citation/terminated_by), adapters/langgraph (REAL StateGraph verified), porcelain/runner.py (dispatch + termination). pytest 9 passed/2 skipped offline no-key. The model is a 1-method swappable seam — proves "I build the platform, model doesn't matter". Added Phase 1.5: claude -p + CL4R1T4S persona backend behind that seam.
 - P1.1 porcelain/retrieval.py: BM25Okapi CorpusRetriever, 150w/30w-overlap chunks, deterministic, framework-free. Self-check verified independently: 7 doc_ids, top hit oncall-policy for "on-call stipend", format_context labels [doc_id:..]. Swapped sentence-transformers->rank-bm25 (right-sized for 7-doc corpus).

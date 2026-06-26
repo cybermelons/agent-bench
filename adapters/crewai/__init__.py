@@ -1,4 +1,4 @@
-"""adapters.crewai — CrewAI framework adapter (interface-parity stub this phase)."""
+"""adapters.crewai — CrewAI framework adapter (real Agent + Task + Crew)."""
 
 from adapters.crewai.adapter import CrewAIAdapter
 
