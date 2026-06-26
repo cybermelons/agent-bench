@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-bench"
+version = "0.1.0"
+description = "RAG-over-docs Q&A agent benchmarked across LangGraph and CrewAI"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2",
+    "pyyaml",
+    "anthropic",
+    "langchain",
+    "langgraph",
+    "crewai",
+    "langchain-community",
+    "langchain-anthropic",
+    "sentence-transformers",
+    "pytest",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["porcelain", "adapters", "evalkit", "report"]

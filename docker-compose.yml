@@ -1,0 +1,12 @@
+services:
+  app:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    # No default command — drop in with: docker compose run app bash
+    command: sleep infinity
+
+  # Vector store placeholder — add a chroma or qdrant service here when needed.
