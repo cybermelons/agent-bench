@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agent-bench — measure the pattern, then standardize on it</title>
+<style>
+/* ============================================================
+   ONE SOURCE OF TRUTH — every grid parameter lives here.
+   Content and the overlay both read these same variables.
+   ============================================================ */
+:root{
+  --cols: 12;
+  --gutter: 24px;
+  --margin: 48px;
+  --bl: 8px;            /* baseline unit            */
+  --lh: 24px;          /* leading = 3 x baseline   */
+  --maxw: 1180px;
+  --accent: #e4002b;   /* Swiss red — the one accent */
+  --ink: #111;
+  --paper: #fff;
+  --rule: #d8d8d8;
+  --faint: #6a6a6a;
+  --sans: "Inter","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --mono: "IBM Plex Mono","Space Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--sans); font-weight:400;
+  font-size:16px; line-height:var(--lh);
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+/* --- system grotesque face approximations via system fonts; no CDN ---
+   We rely on Inter if installed, else Helvetica/Arial. All grotesque,
+   flush-left. No webfont fetch so the page works file:// and offline. */
+
+/* ============================================================
+   THE GRID — wrap is the content box. .guides lives INSIDE it,
+   so overlay columns ARE content columns at every viewport width.
+   ============================================================ */
+.wrap{
+  position:relative;
+  max-width:var(--maxw);
+  margin:0 auto;
+  padding-left:var(--margin);
+  padding-right:var(--margin);
+}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(var(--cols),1fr);
+  column-gap:var(--gutter);
+  align-items:start;
+}
+/* subgrid bands: each band spans all columns and re-exposes them,
+   so children place by column LINE, not eyeballed spans. */
+.band{
+  grid-column:1 / -1;
+  display:grid;
+  grid-template-columns:subgrid;
+  column-gap:var(--gutter);
+  align-items:start;
+}
+@supports not (grid-template-columns:subgrid){
+  .band{grid-template-columns:repeat(var(--cols),1fr);}
+}
+
+/* ---- vertical rhythm: all spacing multiples of baseline ---- */
+section{padding-top:48px; padding-bottom:48px; border-top:1px solid var(--rule);}
+section:first-of-type{border-top:none;}
+h1,h2,h3,h4,p,ul,ol,pre,table,figure{margin:0;}
+p + p{margin-top:var(--lh);}
+
+/* ---- type scale: few sizes, large jumps ---- */
+.masthead{
+  font-size:96px; line-height:96px; font-weight:800;
+  letter-spacing:-0.02em; margin:0;
+}
+.kicker{
+  font-family:var(--mono); font-size:12px; line-height:var(--lh);
+  letter-spacing:0.14em; text-transform:uppercase; color:var(--faint);
+}
+.kicker .num{color:var(--accent);}
+h2.shead{
+  font-size:32px; line-height:40px; font-weight:700;
+  letter-spacing:-0.01em; margin:0;
+}
+h3.h3b{
+  font-size:18px; line-height:var(--lh); font-weight:700; margin:0;
+}
+.lede{font-size:20px; line-height:32px; font-weight:400;}
+.body{font-size:16px; line-height:var(--lh);}
+.cap{font-family:var(--mono); font-size:12px; line-height:16px; color:var(--faint);}
+.accent{color:var(--accent);}
+a{color:var(--ink); text-underline-offset:3px; text-decoration-thickness:1px;}
+a:hover{color:var(--accent);}
+
+/* ---- column-line placements ---- */
+.c1-7{grid-column:1 / 8;}
+.c1-9{grid-column:1 / 10;}
+.c1-13{grid-column:1 / 13;}
+.c1-13e{grid-column:1 / -1;}
+.c8-13{grid-column:8 / 13;}
+.c10-13{grid-column:10 / 13;}
+.c1-5{grid-column:1 / 6;}
+.c6-13{grid-column:6 / 13;}
+.c1-4{grid-column:1 / 5;}
+.c5-9{grid-column:5 / 9;}
+.c9-13{grid-column:9 / 13;}
+@media (max-width:760px){
+  .c1-7,.c1-9,.c8-13,.c10-13,.c1-5,.c6-13,.c1-4,.c5-9,.c9-13{grid-column:1 / -1;}
+}
+
+/* ---- honesty banner ---- */
+.banner{
+  background:var(--ink); color:var(--paper);
+}
+.banner .wrap{padding-top:24px; padding-bottom:24px;}
+.banner .tag{
+  font-family:var(--mono); font-size:12px; line-height:var(--lh);
+  letter-spacing:0.1em; text-transform:uppercase; color:var(--accent);
+}
+.banner p{color:var(--paper);}
+.banner a{color:var(--paper);}
+
+/* ---- code / diff block ---- */
+pre{
+  font-family:var(--mono); font-size:13px; line-height:var(--lh);
+  background:#f6f6f6; border:1px solid var(--rule);
+  padding:16px 24px; overflow-x:auto; white-space:pre;
+}
+pre .add{color:#0a7a33;}
+pre .del{color:var(--accent);}
+pre .dim{color:var(--faint);}
+pre b{color:var(--ink);}
+
+/* ---- table ---- */
+table{border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums;}
+caption{caption-side:top; text-align:left;}
+th,td{
+  text-align:right; padding:8px 12px;
+  border-bottom:1px solid var(--rule);
+  font-size:14px; line-height:var(--lh); white-space:nowrap;
+}
+th:first-child,td:first-child{text-align:left;}
+thead th{
+  font-family:var(--mono); font-size:11px; letter-spacing:0.06em;
+  text-transform:uppercase; color:var(--faint); font-weight:600;
+  border-bottom:2px solid var(--ink); vertical-align:bottom;
+}
+tbody th{font-weight:700; font-size:15px;}
+td.big{font-size:18px; font-weight:700;}
+.fw{color:var(--accent); font-weight:700;}
+.syn{font-family:var(--mono); font-size:11px; color:var(--accent); text-transform:uppercase; letter-spacing:0.06em;}
+
+/* ---- architecture list ---- */
+.arch{list-style:none; padding:0; margin:0;}
+.arch li{
+  display:grid; grid-template-columns:140px 1fr; column-gap:var(--gutter);
+  padding:8px 0; border-top:1px solid var(--rule); align-items:baseline;
+}
+.arch li:first-child{border-top:none;}
+.arch .lbl{font-family:var(--mono); font-size:13px; font-weight:700; color:var(--accent);}
+.arch .desc{font-size:15px; line-height:var(--lh);}
+
+/* ---- seam blocks ---- */
+.seam{border-left:2px solid var(--accent); padding-left:16px; margin-top:var(--lh);}
+.seam .tag{font-family:var(--mono); font-size:12px; font-weight:700; letter-spacing:0.04em;}
+
+/* ---- jd map ---- */
+.jd{list-style:none; padding:0; margin:0;}
+.jd li{padding:8px 0; border-top:1px solid var(--rule);}
+.jd li:first-child{border-top:none;}
+.jd .piece{font-family:var(--mono); font-size:13px; font-weight:700;}
+.jd .arrow{color:var(--accent); padding:0 8px;}
+
+ul.bul{padding-left:20px; margin-top:var(--lh);}
+ul.bul li{margin-top:8px; line-height:var(--lh);}
+
+/* spacing helpers — baseline multiples */
+.mt1{margin-top:var(--lh);} .mt2{margin-top:48px;} .mt05{margin-top:8px;}
+
+/* ============================================================
+   GRID OVERLAY — drawn inside the same .wrap, reading the same
+   variables. Numbered column fields + baseline + margin lines.
+   ============================================================ */
+.guides{
+  position:absolute; inset:0;
+  pointer-events:none; opacity:0; transition:opacity .15s;
+  z-index:50;
+}
+body.grid-on .guides{opacity:1;}
+.guides .cols{
+  position:absolute; top:0; bottom:0;
+  left:var(--margin); right:var(--margin);
+  display:grid; grid-template-columns:repeat(var(--cols),1fr);
+  column-gap:var(--gutter);
+}
+.guides .cols .col{
+  background:rgba(228,0,43,0.07);
+  border-left:1px solid rgba(228,0,43,0.30);
+  border-right:1px solid rgba(228,0,43,0.30);
+  position:relative;
+}
+.guides .cols .col::before{
+  content:attr(data-n);
+  position:absolute; top:2px; left:2px;
+  font-family:var(--mono); font-size:9px; color:rgba(228,0,43,0.8);
+}
+.guides .mline{
+  position:absolute; top:0; bottom:0; width:1px;
+  background:rgba(228,0,43,0.55);
+}
+.guides .mline.l{left:var(--margin);}
+.guides .mline.r{right:var(--margin);}
+/* baseline ruler: real DOM lines (no gradient — avoids HiDPI drift) */
+.guides .baseline{position:absolute; left:0; right:0;}
+.guides .bl{position:absolute; left:0; right:0; height:1px; background:rgba(17,17,17,0.06);}
+.guides .bl.major{background:rgba(17,17,17,0.14);}
+
+/* toggle button */
+#gridtoggle{
+  position:fixed; right:16px; bottom:16px; z-index:100;
+  font-family:var(--mono); font-size:12px; letter-spacing:0.06em;
+  text-transform:uppercase; color:var(--paper); background:var(--ink);
+  border:none; padding:10px 14px; cursor:pointer;
+}
+#gridtoggle:hover{background:var(--accent);}
+body.grid-on #gridtoggle{background:var(--accent);}
+
+footer{padding-top:24px; padding-bottom:48px; border-top:2px solid var(--ink);}
+.foot{font-family:var(--mono); font-size:12px; color:var(--faint); line-height:var(--lh);}
+</style>
+</head>
+<body>
+
+<!-- ========================= 1. HEADER ========================= -->
+<header>
+  <div class="wrap">
+    <div class="guides" aria-hidden="true"></div>
+    <div class="grid" style="padding-top:48px;padding-bottom:48px;">
+      <div class="band">
+        <div class="c1-13e kicker"><span class="num">/</span> GenAI Platform Engineering &nbsp;·&nbsp; portfolio artifact &nbsp;·&nbsp; 2026</div>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <h1 class="masthead c1-13e">agent&#8209;bench</h1>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <p class="lede c1-9">An enterprise agent platform earns the right to standardize on a pattern by <span class="accent">measuring it, not by taste.</span></p>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <p class="body c1-7">One RAG agent, written once as a declarative spec, run on <b>two frameworks</b> — LangGraph and CrewAI — behind a thin <b>porcelain</b> interface. The platform measures both, and the measurement is what justifies the blended defaults.</p>
+        <div class="c8-13 cap">A single agent. Two adapters. One eval spine. The model is a swappable seam behind a one-method interface — built so the measuring platform, not any one model, is the product.</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ========================= 2. HONESTY BANNER ========================= -->
+<section class="banner" style="border-top:none;">
+  <div class="wrap">
+    <div class="guides" aria-hidden="true"></div>
+    <div class="grid">
+      <div class="band">
+        <div class="c1-13e tag">▶ Provenance — read this first</div>
+      </div>
+      <div class="band" style="margin-top:8px;">
+        <p class="body c1-9">Every number on this page is a <b>demonstration number from a deterministic <span class="accent">FakeLLM</span></b> backend — offline, no real model call. <b>This is NOT a real-model benchmark.</b> No GPT, Gemini, or live Claude model was benchmarked to produce these figures. They exist to demonstrate that the <i>measuring workflow</i> runs end to end and is data-driven.</p>
+        <div class="c10-13 cap">backend = fake<br>synthetic = true<br>n_questions = 2<br>n_runs = 4</div>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <p class="body c1-9">The model is a <b>swappable seam</b>. The same one-method interface accepts the offline FakeLLM, headless <b>Claude Code</b> personas (labeled <span class="accent">claude&#8209;as&#8209;&lt;persona&gt;</span>, never passed off as another vendor), or the real Anthropic SDK. The point is model-pluggability: <i>I build the measuring platform; the model is a detail behind a one-method seam.</i></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= 3. WRITE ONCE, RUN ON TWO ========================= -->
+<section>
+  <div class="wrap">
+    <div class="guides" aria-hidden="true"></div>
+    <div class="grid">
+      <div class="band">
+        <div class="c1-13e kicker"><span class="num">01</span> &nbsp; Write once, run on two frameworks</div>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <h2 class="shead c1-9">The agent is one declarative spec. Moving it onto the other framework is a one-line change.</h2>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <div class="c1-13e">
+<pre><span class="dim">  # specs/langgraph-baseline.yaml  →  specs/crewai-baseline.yaml</span>
+<span class="dim">  # same corpus, same model, same termination policy — only the framework moves</span>
+
+    name: <span class="del">langgraph-baseline</span>
+    name: <span class="add">crewai-baseline</span>
+<b>-   framework: <span class="del">langgraph</span></b>
+<b>+   framework: <span class="add">crewai</span></b>
+    corpus: corpus
+    model: claude-3-5-sonnet-latest
+    tools: []
+    termination:
+      max_iterations: 6
+      timeout_s: 30.0
+      max_retries: 2
+      success_gate: cites_corpus     <span class="dim"># answer must cite ≥1 corpus doc</span></pre>
+        </div>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <p class="body c1-7">The load-bearing diff is the <span class="accent">framework:</span> line. (The <code>name:</code> follows the file, and per-file comments differ — but corpus, model, tools, and the entire termination contract are byte-identical.) Everything an application author declares stays put; only the execution substrate swaps.</p>
+        <div class="c8-13 cap">success_gate: cites_corpus<br>— the same declarative contract is handed to both frameworks. The eval then watches how each one <i>honors</i> it.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= 4. COMPARISON TABLE ========================= -->
+<section>
+  <div class="wrap">
+    <div class="guides" aria-hidden="true"></div>
+    <div class="grid">
+      <div class="band">
+        <div class="c1-13e kicker"><span class="num">02</span> &nbsp; The measurement — both frameworks, same contract</div>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <h2 class="shead c1-9">Rendered live from the embedded <code>results.json</code> — data-driven, not hand-typed.</h2>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <div class="c1-13e">
+          <table id="cmp">
+            <caption class="cap" style="margin-bottom:8px;">summary section of evalkit/results.json · rates shown as % · latency in seconds</caption>
+            <thead><tr id="cmp-head"></tr></thead>
+            <tbody id="cmp-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <p class="body c1-7"><b>The real signal.</b> On the <i>same two questions</i> under the <i>same</i> <code>cites_corpus</code> gate, <span class="accent">crewai gated 2/2</span> — it always produced a citation and terminated in one iteration — while <span class="accent">langgraph gated 1/2</span>: question&nbsp;2 ran out to <code>max_iter = 6</code>, burned 600 input tokens, and never cited. Same declarative contract, <b>different framework behavior</b>. That is exactly the kind of divergence a platform should standardize on by measuring, not by taste.</p>
+        <div class="c8-13 cap"><b style="color:var(--ink)">Honest caveat.</b> This particular gap is partly a <span class="accent">FakeLLM artifact</span> — the deterministic stub drives langgraph's loop to max-iter on q2 in a way a real model might not. The <i>workflow</i> is real; this specific number is not a verdict on either framework.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= 5. MEASUREMENT JUSTIFIES DEFAULTS ========================= -->
+<section>
+  <div class="wrap">
+    <div class="guides" aria-hidden="true"></div>
+    <div class="grid">
+      <div class="band">
+        <div class="c1-13e kicker"><span class="num">03</span> &nbsp; How measurement justifies the defaults</div>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <p class="lede c1-9">The eval is not a report you read and forget. Its output is wired back to set the porcelain defaults.</p>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <p class="body c1-7">The measured <code>gate_rate</code>, iteration counts, and token cost feed the porcelain <code>TerminationPolicy</code> (the <code>max_iterations</code> ceiling, the <code>success_gate</code>) and the retrieval&#8209;<code>k</code> default. A default like <code>max_iterations = 6</code> stops being a guess and becomes a number with eval provenance attached. <b>Framed honestly:</b> with synthetic n=2 numbers this is a <span class="accent">demonstration of the workflow</span> — the wiring is real; the evidence base is intentionally tiny.</p>
+        <div class="c8-13 cap">measure → annotate the default with where the number came from → ship the default → re-measure. The loop, not any single value, is the deliverable.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= 6. ARCHITECTURE ========================= -->
+<section>
+  <div class="wrap">
+    <div class="guides" aria-hidden="true"></div>
+    <div class="grid">
+      <div class="band">
+        <div class="c1-13e kicker"><span class="num">04</span> &nbsp; Architecture</div>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <h2 class="shead c1-9">Four layers. The eval spine is the one that earns its keep.</h2>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <div class="c1-9">
+          <ul class="arch">
+            <li><span class="lbl">porcelain</span><span class="desc">the thin canonical interface every app author touches — the declarative <code>AgentSpec</code>, the <b>LLM seam</b> (<code>complete()</code>), the retriever, the <code>TerminationPolicy</code>. <code>porcelain/llm.py · retrieval.py · runner.py · types.py</code></span></li>
+            <li><span class="lbl">adapters</span><span class="desc">the per-framework plumbing that honors the spec. <code>adapters/langgraph/</code> and <code>adapters/crewai/</code> behind one <code>adapters/base.py</code>.</span></li>
+            <li><span class="lbl">evalkit</span><span class="desc">the measurement spine — runs both frameworks over the corpus, applies the gate, scores with an LLM-as-judge, emits <code>results.json</code>. <code>evalkit/run.py · judge.py</code></span></li>
+            <li><span class="lbl">report</span><span class="desc">renders the results to <code>results.md</code> and annotates the porcelain defaults with their eval provenance. <code>report/build.py</code></span></li>
+          </ul>
+        </div>
+        <div class="c10-13 cap">app author<br>↓ writes one AgentSpec<br><b style="color:var(--ink)">porcelain</b><br>↓ dispatches<br><b style="color:var(--ink)">adapters</b> · langgraph / crewai<br>↓ both measured by<br><b style="color:var(--ink)">evalkit</b><br>↓ feeds<br><b style="color:var(--ink)">report</b> → defaults</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= 7. MODEL-PLUGGABILITY SEAM ========================= -->
+<section>
+  <div class="wrap">
+    <div class="guides" aria-hidden="true"></div>
+    <div class="grid">
+      <div class="band">
+        <div class="c1-13e kicker"><span class="num">05</span> &nbsp; The model-pluggability seam</div>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <h2 class="shead c1-9">One method — <code>complete(*, system, messages, model)</code> — three interchangeable clients.</h2>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <div class="c1-7">
+          <div class="seam">
+            <div class="tag accent">FakeLLM</div>
+            <p class="body mt05">Offline, deterministic, free. Injected in tests and for these demonstration numbers. No network, no key — the page's data came from here.</p>
+          </div>
+          <div class="seam">
+            <div class="tag accent">claude&#8209;as&#8209;&lt;persona&gt;</div>
+            <p class="body mt05">Headless <b>Claude Code</b> (<code>claude -p</code>) driven by a persona system prompt. Labeled <code>claude-as-&lt;persona&gt;</code> everywhere — honestly a Claude model wearing a persona, never disguised as another vendor's model.</p>
+          </div>
+          <div class="seam">
+            <div class="tag accent">Anthropic SDK</div>
+            <p class="body mt05">Production <code>RealAnthropicClient</code> — the real <code>anthropic</code> SDK calling a <code>claude-*</code> model. Lazily imported, so the offline path never needs it installed.</p>
+          </div>
+        </div>
+        <div class="c8-13">
+          <p class="body"><b>Why this is the point.</b> Swapping the model is a one-line client choice behind a one-method seam. The platform's value is the <i>measuring</i> — the spec, the adapters, the gate, the judge, the provenance. The model is a detail you slot in. That is the posture an enterprise platform team wants: <span class="accent">own the measuring surface, treat the model as pluggable.</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= 8. JD MAP ========================= -->
+<section>
+  <div class="wrap">
+    <div class="guides" aria-hidden="true"></div>
+    <div class="grid">
+      <div class="band">
+        <div class="c1-13e kicker"><span class="num">06</span> &nbsp; What this maps to in the JD</div>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <div class="c1-9">
+          <ul class="jd">
+            <li><span class="piece">two adapters + one eval</span><span class="arrow">→</span><span class="body">evaluate agent frameworks on the merits, with evidence rather than preference</span></li>
+            <li><span class="piece">the porcelain interface</span><span class="arrow">→</span><span class="body">design canonical, opinionated APIs that hide framework churn from app teams</span></li>
+            <li><span class="piece">write-once AgentSpec + one-line swap</span><span class="arrow">→</span><span class="body">developer experience — make the right thing the easy thing</span></li>
+            <li><span class="piece">the honesty / provenance discipline</span><span class="arrow">→</span><span class="body">trust &amp; safety — synthetic numbers labeled synthetic, personas labeled as Claude, defaults that cite where they came from</span></li>
+            <li><span class="piece">the model seam</span><span class="arrow">→</span><span class="body">model-pluggability — own the platform, treat the model as a swappable detail</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= 9. LIMITATIONS ========================= -->
+<section>
+  <div class="wrap">
+    <div class="guides" aria-hidden="true"></div>
+    <div class="grid">
+      <div class="band">
+        <div class="c1-13e kicker"><span class="num">07</span> &nbsp; Honest limitations</div>
+      </div>
+      <div class="band" style="margin-top:24px;">
+        <div class="c1-7">
+          <ul class="bul body">
+            <li><b>Two frameworks only</b> — LangGraph and CrewAI. Not a survey of the field.</li>
+            <li><b>Tiny fictional corpus</b> — a handful of synthetic ops/runbook docs, not a real knowledge base.</li>
+            <li><b>Single task shape</b> — RAG-with-citation-gate; one agent pattern, not many.</li>
+            <li><b>Synthetic numbers</b> — deterministic FakeLLM, not a real-model benchmark.</li>
+            <li><b>n = 2 questions, 4 runs</b> — far below anything you'd draw a statistical conclusion from. The framework gap is illustrative and partly a FakeLLM artifact.</li>
+          </ul>
+        </div>
+        <div class="c8-13">
+          <p class="body">None of this undercuts the thesis. The deliverable is the <i>measuring platform and the discipline around it</i> — swap in real models and a real corpus, and the same spine produces numbers you could actually standardize on.</p>
+          <p class="body mt1"><a href="https://github.com/cybermelons/agent-bench"><b>github.com/cybermelons/agent-bench →</b></a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="grid">
+      <div class="band">
+        <div class="c1-9 foot">agent-bench — a measuring platform for agent frameworks. Demonstration numbers (FakeLLM, synthetic, n=2). Built with Claude Code. Press <b>G</b> to toggle the grid this page is built on.</div>
+        <div class="c10-13 foot">© 2026 · MAE</div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<button id="gridtoggle" aria-pressed="false">Grid · G</button>
+
+<!-- ============================================================
+     EMBEDDED DATA — verbatim summary from evalkit/results.json.
+     The table below is rendered FROM this object, proving it is
+     data-driven rather than hand-typed.
+     ============================================================ -->
+<script type="application/json" id="results-data">
+{
+  "meta": {
+    "backend": "fake",
+    "model": "claude-3-5-sonnet-latest",
+    "synthetic": true,
+    "synthetic_reason": "FakeLLM backend (offline deterministic, no real model)",
+    "n_questions": 2,
+    "n_runs": 4,
+    "frameworks": ["crewai", "langgraph"]
+  },
+  "summary": {
+    "langgraph": {
+      "synthetic": true, "backend": "fake", "n": 2,
+      "gate_rate": 0.5, "cited_expected_rate": 0.5, "judge_pass_rate": 0.5,
+      "mean_judge_score": 0.38782051282051283,
+      "mean_latency_s": 0.003219896025257185,
+      "mean_tokens_in": 350.0, "mean_tokens_out": 70.0, "mean_iterations": 3.5
+    },
+    "crewai": {
+      "synthetic": true, "backend": "fake", "n": 2,
+      "gate_rate": 1.0, "cited_expected_rate": 0.5, "judge_pass_rate": 0.5,
+      "mean_judge_score": 0.38782051282051283,
+      "mean_latency_s": 0.01676985397352837,
+      "mean_tokens_in": 100.0, "mean_tokens_out": 20.0, "mean_iterations": 1.0
+    }
+  }
+}
+</script>
+
+<script>
+/* ---------- render the comparison table FROM the embedded JSON ---------- */
+(function(){
+  var data = JSON.parse(document.getElementById('results-data').textContent);
+  var sum = data.summary;
+  // column spec: [key, header label, formatter]
+  var pct = function(v){ return (v*100).toFixed(0) + '%'; };
+  var sec = function(v){ return v.toFixed(5) + 's'; };
+  var num = function(v){ return String(v); };
+  var cols = [
+    ['gate_rate',          'gate_rate',          pct, true],
+    ['cited_expected_rate','cited_expected',     pct, false],
+    ['judge_pass_rate',    'judge_pass',         pct, false],
+    ['mean_latency_s',     'mean_latency',       sec, false],
+    ['mean_tokens_in',     'tokens_in',          num, false],
+    ['mean_tokens_out',    'tokens_out',         num, false],
+    ['mean_iterations',    'mean_iter',          num, false]
+  ];
+  // header
+  var head = document.getElementById('cmp-head');
+  var th0 = document.createElement('th'); th0.textContent = 'framework'; head.appendChild(th0);
+  cols.forEach(function(c){
+    var th = document.createElement('th'); th.textContent = c[1]; head.appendChild(th);
+  });
+  var thS = document.createElement('th'); thS.textContent = 'synthetic?'; head.appendChild(thS);
+  // rows — iterate frameworks so the table is provably generated from data
+  var body = document.getElementById('cmp-body');
+  data.meta.frameworks.slice().sort().forEach(function(fw){
+    var row = sum[fw]; if(!row) return;
+    var tr = document.createElement('tr');
+    var thF = document.createElement('th'); thF.scope='row'; thF.textContent = fw; tr.appendChild(thF);
+    cols.forEach(function(c){
+      var td = document.createElement('td');
+      var val = c[2](row[c[0]]);
+      td.textContent = val;
+      if(c[3]){ td.className = 'big'; if(row[c[0]] === 1.0) td.classList.add('fw'); }
+      tr.appendChild(td);
+    });
+    var tdS = document.createElement('td');
+    tdS.innerHTML = '<span class="syn">' + (row.synthetic ? 'yes · fake' : 'no') + '</span>';
+    tr.appendChild(tdS);
+    body.appendChild(tr);
+  });
+})();
+
+/* ---------- build the grid overlay into every .guides (same content box) ---------- */
+(function(){
+  var COLS = 12;
+  document.querySelectorAll('.guides').forEach(function(g){
+    var cols = document.createElement('div'); cols.className = 'cols';
+    for(var i=1;i<=COLS;i++){
+      var c = document.createElement('div'); c.className='col'; c.setAttribute('data-n', i); cols.appendChild(c);
+    }
+    g.appendChild(cols);
+    var ml = document.createElement('div'); ml.className='mline l'; g.appendChild(ml);
+    var mr = document.createElement('div'); mr.className='mline r'; g.appendChild(mr);
+    // baseline ruler — real DOM lines at exact k*8px (no gradient drift)
+    var bl = document.createElement('div'); bl.className='baseline';
+    var h = g.offsetHeight || g.parentElement.offsetHeight;
+    var n = Math.ceil(h/8);
+    for(var k=0;k<n;k++){
+      var line = document.createElement('div');
+      line.className = 'bl' + (k%3===0 ? ' major' : '');
+      line.style.top = (k*8) + 'px';
+      bl.appendChild(line);
+    }
+    g.appendChild(bl);
+  });
+})();
+
+/* ---------- toggle: button + G key ---------- */
+(function(){
+  var btn = document.getElementById('gridtoggle');
+  function toggle(){
+    var on = document.body.classList.toggle('grid-on');
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+  btn.addEventListener('click', toggle);
+  document.addEventListener('keydown', function(e){
+    if((e.key==='g'||e.key==='G') && !e.metaKey && !e.ctrlKey && !e.altKey){
+      var t=e.target.tagName; if(t==='INPUT'||t==='TEXTAREA') return;
+      toggle();
+    }
+  });
+})();
+
+/* ---------- OPTICAL ALIGNMENT: put display INK (not its box) on the line ---------- */
+(function(){
+  function align(){
+    var cvs=document.createElement('canvas'), ctx=cvs.getContext('2d');
+    document.querySelectorAll('.masthead, h2.shead').forEach(function(el){
+      el.style.marginLeft='0px';
+      var cs=getComputedStyle(el), ch=(el.textContent||'').trim()[0]; if(!ch) return;
+      if(cs.textTransform==='uppercase') ch=ch.toUpperCase();
+      ctx.font=cs.fontStyle+' '+cs.fontWeight+' '+cs.fontSize+' '+cs.fontFamily; ctx.textAlign='left';
+      var abl=ctx.measureText(ch).actualBoundingBoxLeft;
+      if(isFinite(abl)) el.style.marginLeft=abl.toFixed(2)+'px';
+    });
+  }
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(align); } else { align(); }
+  window.addEventListener('resize', align);
+})();
+</script>
+</body>
+</html>
