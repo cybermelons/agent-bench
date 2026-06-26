@@ -68,7 +68,18 @@ class TerminationPolicy(BaseModel):
     By standardising stop conditions here, callers write one policy block and
     each adapter translates it into the framework's native mechanism.
 
-    All defaults are provisional — Phase 4 will backfill eval provenance.
+    Provenance of the defaults
+    --------------------------
+    Each default below is annotated with a pointer to ``report/results.md``,
+    the rendered output of the measurement spine.  This wiring is the POINT of
+    the platform: a default is justified by the run that measured it, not by
+    taste.  HONESTY CAVEAT — the numbers in ``report/results.md`` are currently
+    SYNTHETIC (FakeLLM backend).  The provenance comments therefore DEMONSTRATE
+    the measure-then-standardize workflow; they are NOT tuned-on-a-real-model
+    production values.  Swapping a real client in behind the ``LLMClient`` seam
+    (porcelain/llm.py) and re-running ``evalkit.run`` + ``report.build`` is what
+    turns these into measured defaults.  Do not read the specific numbers as a
+    benchmark result.
     """
 
     max_iterations: int = Field(
@@ -77,7 +88,10 @@ class TerminationPolicy(BaseModel):
         description=(
             "Hard cap on agent reasoning/tool-call loops before the adapter "
             "forces termination with TerminatedBy.MAX_ITER.  "
-            "Provisional default: 6.  Phase 4 will set this from benchmark data."
+            "Default: 6.  PROVENANCE: see report/results.md (mean_iterations per "
+            "group) — the run that this measure-then-standardize workflow reads "
+            "from.  Numbers there are synthetic (FakeLLM), so 6 is a workflow "
+            "DEMONSTRATION, not a real-model-tuned value."
         ),
     )
 
@@ -88,7 +102,9 @@ class TerminationPolicy(BaseModel):
             "Wall-clock budget in seconds for a single question.  "
             "Adapters are responsible for enforcing this via asyncio.wait_for "
             "or an equivalent mechanism; the porcelain layer does not enforce it "
-            "directly.  Provisional default: 30 s.  Phase 4 will tune per corpus."
+            "directly.  Default: 30 s.  PROVENANCE: see report/results.md "
+            "(mean_latency_s per group).  Synthetic numbers today → this is a "
+            "workflow DEMONSTRATION, not a tuned production value."
         ),
     )
 
@@ -99,7 +115,9 @@ class TerminationPolicy(BaseModel):
             "Number of times the adapter may retry on a *transient* failure "
             "(network timeout, rate-limit 429, etc.) before surfacing the error "
             "and setting TerminatedBy.ERROR.  Does not apply to logic errors or "
-            "malformed responses.  Provisional default: 2."
+            "malformed responses.  Default: 2.  PROVENANCE: report/results.md "
+            "(error/termination rows).  Synthetic today → workflow "
+            "DEMONSTRATION, not a real-model-tuned value."
         ),
     )
 
@@ -111,7 +129,11 @@ class TerminationPolicy(BaseModel):
             "passes, termination reason is set to TerminatedBy.GATE.  "
             "Currently one value is supported: 'cites_corpus' — the answer "
             "must cite at least one document from the loaded corpus (checked "
-            "via AgentResult.cites_corpus).  Additional gates ('grounded', "
+            "via AgentResult.cites_corpus).  PROVENANCE: report/results.md "
+            "(gate_rate / cited_expected_rate per group) is where this gate's "
+            "effect is measured; the current numbers are synthetic (FakeLLM), "
+            "so this default DEMONSTRATES the workflow rather than being a "
+            "real-model-tuned choice.  Additional gates ('grounded', "
             "'has_answer', etc.) are reserved for future phases; adding one "
             "will require widening this Literal and registering a checker in "
             "the adapter base class."

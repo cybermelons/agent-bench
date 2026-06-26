@@ -1,6 +1,10 @@
 # LOOP-STATE — agent-bench build
 
-GOAL: pytest exits 0 AND `python -m report.build` writes report/results.md containing a metrics
+GOAL: ACHIEVED ✅ — pytest exits 0 (36 passed/3 skipped), `python -m report.build` writes
+report/results.md with a metrics table containing BOTH langgraph and crewai rows, all checklist
+items checked. Verified independently. Build complete in ~14 turns (cap was 40).
+
+(original) pytest exits 0 AND `python -m report.build` writes report/results.md containing a metrics
 table with rows for BOTH the langgraph and crewai adapters, AND every checklist item below is
 checked — or stop after 40 turns.
 
@@ -39,10 +43,11 @@ Build rules (from the approved plan):
 - [x] meta.synthetic honesty flag + per-group synthetic/backend stamp (survives screenshot). CLI: --subset/--backend/--personas/--out.
 - [x] tests: judge deterministic, scorers correct, subset eval emits both frameworks. 30 passed/3 skipped (live tests now RUN_LIVE-gated -> skip not fail on stale key).
 
-## Phase 4 — report
-- [ ] report/build.py — results.json → report/results.md (metrics table, terminated_by breakdown)
-- [ ] annotate porcelain default TerminationPolicy / retrieval-k with provenance citing the run
-- [ ] README.md — thesis, how-to-run, comparison table, honest limits; names Claude Code/Claude
+## Phase 4 — report — COMPLETE
+- [x] report/build.py — results.json → report/results.md: provenance/honesty banner, metrics table with BOTH langgraph+crewai rows (synthetic? column), "what this shows" from real numbers. Auto-runs eval if results.json missing.
+- [x] annotated porcelain TerminationPolicy + retrieval k=4 with provenance comments citing report/results.md — HONESTLY framed as demonstration of measure->standardize, NOT fabricated tuned values.
+- [x] README.md — thesis, architecture, how-to-run, model story (LLMClient seam, claude-as-<persona> labeling, SDK swap), honest limitations, JD-mapping. Names Claude/Claude Code 11x.
+- [x] tests/test_phase4.py — report.build writes results.md with both rows + synthetic banner. 36 passed/3 skipped.
 
 ## Design decisions (locked)
 - Eval axis: model-persona × framework grid (LangGraph + CrewAI).
@@ -60,6 +65,7 @@ Build rules (from the approved plan):
 
 ## Log
 (newest first; one line per completed item)
+- P4 PHASE 4 COMPLETE — GOAL ACHIEVED: report/build.py -> results.md (both-framework table, synthetic-flagged, honesty banner), provenance comments on porcelain defaults (honest demo framing), real README (names Claude 11x, JD-mapping). review SOLID. Verified independently: pytest exit 0 (36/3), both adapter rows present. The measure->standardize thesis is now visible end-to-end.
 - P3 PHASE 3 COMPLETE: evalkit (run.py + judge.py) — the measurement spine. Golden×both frameworks scored (citation+answer_contains deterministic, correctness LLM-judge via seam), results.json with real per-group SLA metrics + honesty meta. review SOLID. Fixed 2 minors: per-group synthetic stamp (screenshot-safe) + RUN_LIVE gating (live tests skip not fail on stale key). 30 passed/3 skipped.
 - P2 PHASE 2 COMPLETE: real CrewAI adapter (Agent/Task/Crew/kickoff), _ShimLLM(BaseLLM)->self.llm seam, shared retriever, base-owned citation/terminated_by. Interchange test proves one-line framework swap. review verdict SOLID, 26 passed/2 skipped offline, verified independently. Minor: re-kick loop = intentional parity w/ langgraph (fair comparison).
 - P1.5 persona backend: ClaudeCodeClient (real claude -p, keyless) + 3 CL4R1T4S personas + provenance README + AgentSpec.persona. 22 passed/2 skipped offline. Honesty gap closed (personas labeled claude-as-X). This is the concrete proof: "model is a swappable persona behind a 1-method seam; the platform is the deliverable."

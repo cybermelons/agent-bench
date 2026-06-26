@@ -178,6 +178,16 @@ class CorpusRetriever:
             Number of chunks to return (default 4).  If fewer chunks exist
             in the index, all chunks are returned.
 
+            PROVENANCE of the ``k=4`` blended default: the trade-off between
+            recall (higher k → more chance the expected doc is in context, see
+            ``cited_expected_rate`` in report/results.md) and prompt cost
+            (higher k → more ``mean_tokens_in``) is what the report measures
+            per group.  HONESTY CAVEAT — the numbers in report/results.md are
+            currently SYNTHETIC (FakeLLM backend), so ``k=4`` DEMONSTRATES the
+            measure-then-standardize workflow; it is NOT a real-model-tuned
+            value.  Re-run ``evalkit.run`` + ``report.build`` behind a real
+            ``LLMClient`` to turn this into a measured choice.
+
         Returns
         -------
         list[RetrievedChunk]
