@@ -16,7 +16,7 @@ dependencies = [
     "crewai",
     "langchain-community",
     "langchain-anthropic",
-    "sentence-transformers",
+    "rank-bm25",
     "pytest",
     "python-dotenv",
 ]
