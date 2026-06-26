@@ -2,6 +2,8 @@
 
 > An enterprise agent platform earns the right to standardize on a pattern by measuring it, not by taste.
 
+**🔗 Live demo:** https://cybermelons.github.io/agent-bench/
+
 ## What it is
 
 **One agent, two frameworks, measured — with defaults justified by the measurement.**
