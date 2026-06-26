@@ -21,6 +21,8 @@ pytest collection stays green offline.
 
 from __future__ import annotations
 
+import json
+import subprocess
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
@@ -124,6 +126,183 @@ class RealAnthropicClient:
             tokens_in=resp.usage.input_tokens,
             tokens_out=resp.usage.output_tokens,
         )
+
+
+# ---------------------------------------------------------------------------
+# ClaudeCodeClient
+# ---------------------------------------------------------------------------
+
+# Default location of the REAL claude binary on this machine.  The `claude`
+# shell alias points at `happy`; we must call the real binary directly to get
+# headless ``-p`` behaviour, so the path is the binary, not the alias.
+_DEFAULT_CLAUDE_BINARY = "/Users/cybermelon/.nvm/versions/node/v23.8.0/bin/claude"
+
+
+class ClaudeCodeClient:
+    """
+    Offline-capable :class:`LLMClient` backed by headless Claude Code (``claude -p``).
+
+    Why this exists
+    ---------------
+    agent-bench is a demonstration of a *model/framework eval platform*: the
+    model is a swappable detail behind the :class:`LLMClient` seam.  To run with
+    no API key, this client shells out to the real ``claude`` binary in headless
+    mode (``claude -p "<prompt>" --max-turns 1``), which prints the model's text
+    to stdout.
+
+    Persona axis
+    ------------
+    When constructed with a ``persona_prompt`` (a CL4R1T4S system prompt that
+    makes Claude *act like* another product, e.g. Cursor or ChatGPT), that text
+    is prepended to the composed prompt.  These are labelled honestly as
+    ``claude-as-<persona>`` everywhere — they are NOT real GPT/Gemini calls.
+
+    Token accounting
+    ----------------
+    Plain ``claude -p`` text output carries no usage block, so ``tokens_in`` /
+    ``tokens_out`` are **ESTIMATES** computed with a ``len(...)//4`` heuristic
+    (~4 chars/token).  When ``use_json_usage=True`` the client tries
+    ``--output-format json`` and, if the JSON parses and exposes a usage block,
+    reports the *real* counts; otherwise it transparently falls back to the
+    estimate.  Treat the estimate as indicative only — it is not billed usage.
+
+    Parameters
+    ----------
+    binary : str
+        Absolute path to the real claude binary.  Defaults to the known
+        install path on this machine.
+    persona_prompt : str | None
+        Optional persona/system text prepended to every composed prompt.
+    timeout_s : float
+        Per-call subprocess timeout in seconds (default 120).
+    use_json_usage : bool
+        If True, request ``--output-format json`` and parse real usage when
+        available, falling back to the char-based estimate on any failure.
+    """
+
+    def __init__(
+        self,
+        binary: str = _DEFAULT_CLAUDE_BINARY,
+        persona_prompt: str | None = None,
+        timeout_s: float = 120,
+        use_json_usage: bool = False,
+    ) -> None:
+        self.binary = binary
+        self.persona_prompt = persona_prompt
+        self.timeout_s = timeout_s
+        self.use_json_usage = use_json_usage
+
+    # -- prompt composition --------------------------------------------------
+
+    @staticmethod
+    def _user_text(messages: list[dict]) -> str:
+        """Flatten the user-message content into a single string.
+
+        Accepts the Anthropic message shape where ``content`` is either a plain
+        string or a list of content blocks; only ``text`` blocks contribute.
+        """
+        parts: list[str] = []
+        for msg in messages:
+            content = msg.get("content", "")
+            if isinstance(content, str):
+                parts.append(content)
+            elif isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        parts.append(block.get("text", ""))
+        return "\n".join(p for p in parts if p)
+
+    def _compose_prompt(self, *, system: str, messages: list[dict]) -> str:
+        """Build the single prompt string: persona + system + user content."""
+        sections: list[str] = []
+        if self.persona_prompt:
+            sections.append(self.persona_prompt)
+        if system:
+            sections.append(system)
+        user = self._user_text(messages)
+        if user:
+            sections.append(user)
+        return "\n\n".join(sections)
+
+    def _argv(self, prompt: str) -> list[str]:
+        """The exact argv passed to subprocess.run for *prompt*."""
+        argv = [self.binary, "-p", prompt, "--max-turns", "1"]
+        if self.use_json_usage:
+            argv += ["--output-format", "json"]
+        return argv
+
+    # -- LLMClient.complete --------------------------------------------------
+
+    def complete(self, *, system: str, messages: list[dict], model: str) -> LLMResponse:
+        # ``model`` is accepted for protocol parity but not forwarded: the
+        # headless binary uses whatever model the local Claude Code is
+        # configured with.  The persona — not the model id — is the axis here.
+        prompt = self._compose_prompt(system=system, messages=messages)
+        argv = self._argv(prompt)
+
+        try:
+            proc = subprocess.run(
+                argv,
+                capture_output=True,
+                text=True,
+                timeout=self.timeout_s,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                f"claude -p timed out after {self.timeout_s}s "
+                f"(binary={self.binary!r})"
+            ) from exc
+
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"claude -p exited {proc.returncode} "
+                f"(binary={self.binary!r}): {proc.stderr.strip()[:500]}"
+            )
+
+        stdout = proc.stdout
+
+        # JSON path: parse real usage when requested and available; otherwise
+        # fall back to the estimate so a JSON-shape change never breaks a run.
+        if self.use_json_usage:
+            parsed = self._try_parse_json_usage(stdout)
+            if parsed is not None:
+                return parsed
+
+        text = stdout.strip()
+        # ESTIMATE ONLY: ~4 chars/token. Plain `claude -p` returns no usage.
+        return LLMResponse(
+            text=text,
+            tokens_in=len(prompt) // 4,
+            tokens_out=len(text) // 4,
+        )
+
+    @staticmethod
+    def _try_parse_json_usage(stdout: str) -> LLMResponse | None:
+        """Parse ``--output-format json`` output into an LLMResponse.
+
+        Returns None (caller falls back to the estimate) if the payload does not
+        parse or does not expose the expected text/usage fields.
+        """
+        try:
+            payload = json.loads(stdout)
+        except (json.JSONDecodeError, ValueError):
+            return None
+        if not isinstance(payload, dict):
+            return None
+
+        # claude -p --output-format json shape: top-level "result" holds the
+        # text; "usage" holds input/output token counts when present.
+        text = payload.get("result")
+        if not isinstance(text, str):
+            return None
+        usage = payload.get("usage")
+        if not isinstance(usage, dict):
+            return None
+        tin = usage.get("input_tokens")
+        tout = usage.get("output_tokens")
+        if not isinstance(tin, int) or not isinstance(tout, int):
+            return None
+        return LLMResponse(text=text.strip(), tokens_in=tin, tokens_out=tout)
 
 
 # ---------------------------------------------------------------------------

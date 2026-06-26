@@ -24,11 +24,11 @@ Build rules (from the approved plan):
 - [x] porcelain/llm.py — LLMClient protocol + FakeLLM + RealAnthropicClient (the swappable model seam — "model doesn't matter, the platform does")
 - [x] tests: 9 passed, 2 skipped OFFLINE (no key, no network) — spec loads, retriever finds oncall-policy, langgraph adapter cites oncall-policy w/ terminated_by=GATE
 
-## Phase 1.5 — persona backend (claude -p, honestly labeled)
-- [ ] porcelain/llm.py: add ClaudeCodeClient — shells out to real `claude -p` binary (NOT happy alias), keyless. Accepts a persona system prompt (CL4R1T4S file) prepended to the grounding system prompt.
-- [ ] prompts/: pull a few CL4R1T4S personas (claude-code already saved; add 1-2 more e.g. cursor, gpt) into prompts/personas/
-- [ ] AgentSpec gains optional `persona` field (path/name); runner picks ClaudeCodeClient when a real backend is requested. Labeled `claude-as-<persona>` in results.
-- [ ] tests: ClaudeCodeClient is skipif-no-claude-binary (stays offline-green by default)
+## Phase 1.5 — persona backend (claude -p, honestly labeled) — COMPLETE
+- [x] porcelain/llm.py: ClaudeCodeClient shells out to real claude binary (~/.nvm/.../v23.8.0/bin/claude), keyless. argv=[bin,-p,prompt,--max-turns,1]. Persona prompt prepended. Token counts = len//4 ESTIMATES (documented). spec.model deliberately NOT forwarded — persona is the axis.
+- [x] prompts/personas/: claude-code.md, cursor.md, openai-chatgpt.md (verbatim CL4R1T4S) + README.md provenance/honesty note (claude-as-<persona>, NOT real GPT/Gemini).
+- [x] AgentSpec.persona: optional, backward-compat verified (old specs load, persona defaults None).
+- [x] tests: prompt-composition tested via monkeypatched subprocess (no real call); real-claude test skipif-binary-missing. 22 passed/2 skipped offline.
 
 ## Phase 2 — crewai
 - [ ] adapters/crewai/ — same Adapter.run against the same retrieval util
@@ -59,6 +59,7 @@ Build rules (from the approved plan):
 
 ## Log
 (newest first; one line per completed item)
+- P1.5 persona backend: ClaudeCodeClient (real claude -p, keyless) + 3 CL4R1T4S personas + provenance README + AgentSpec.persona. 22 passed/2 skipped offline. Honesty gap closed (personas labeled claude-as-X). This is the concrete proof: "model is a swappable persona behind a 1-method seam; the platform is the deliverable."
 - P1.2-4 PHASE 1 COMPLETE: porcelain/llm.py (LLMClient seam + FakeLLM + RealAnthropicClient), adapters/base.py (shared timing/citation/terminated_by), adapters/langgraph (REAL StateGraph verified), porcelain/runner.py (dispatch + termination). pytest 9 passed/2 skipped offline no-key. The model is a 1-method swappable seam — proves "I build the platform, model doesn't matter". Added Phase 1.5: claude -p + CL4R1T4S persona backend behind that seam.
 - P1.1 porcelain/retrieval.py: BM25Okapi CorpusRetriever, 150w/30w-overlap chunks, deterministic, framework-free. Self-check verified independently: 7 doc_ids, top hit oncall-policy for "on-call stipend", format_context labels [doc_id:..]. Swapped sentence-transformers->rank-bm25 (right-sized for 7-doc corpus).
 - P0.4 specs: langgraph-baseline.yaml + crewai-baseline.yaml, both load via AgentSpec.from_yaml. PHASE 0 COMPLETE.

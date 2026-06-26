@@ -187,6 +187,18 @@ class AgentSpec(BaseModel):
         ),
     )
 
+    persona: str | None = Field(
+        default=None,
+        description=(
+            "Optional persona slug selecting a CL4R1T4S-style system prompt at "
+            "prompts/personas/<slug>.md.  When set and a real (claude_code) "
+            "backend is used, the runner loads that file and prepends it as the "
+            "persona prompt, making Claude *act like* the named product (labelled "
+            "honestly as 'claude-as-<slug>', NOT a real GPT/Gemini call).  None "
+            "(the default) means no persona, so existing specs load unchanged."
+        ),
+    )
+
     termination: TerminationPolicy = Field(
         default_factory=TerminationPolicy,
         description=(
